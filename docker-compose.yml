@@ -1,0 +1,51 @@
+version: "3.9"
+services:
+  datadogloggingdemo:
+    build: 
+      context: ./
+      dockerfile: ./DataDogLoggingDemo/Dockerfile
+    ports:
+      - 8000:80
+      - 8443:443
+    depends_on:
+      - datadog-agent
+    environment:
+      DD_SERVICE: "datadogloggingdemo"
+      DD_VERSION: "1.0.0.0"
+      DD_ENV: "Development"
+      DD_AGENT_HOST: "datadog-agent"
+      DD_TRACE_ROUTE_TEMPLATE_RESOURCE_NAMES_ENABLED: "true"
+      DD_RUNTIME_METRICS_ENABLED: "true"
+      # All the ASPNETCORE_ stuff and the volumes: is to get the self-signed certificate to work in docker.
+      # Only required when running locally in windows docker desktop.
+      # See https://tomssl.com/how-to-run-asp-net-core-3-1-over-https-in-docker-using-linux-containers/
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: https://+:443;http://+:80
+      ASPNETCORE_Kestrel__Certificates__Default__Password: SECRETPASSWORD
+      ASPNETCORE_Kestrel__Certificates__Default__Path: /https/aspnetapp.pfx
+    volumes:
+      - ~/.aspnet/https:/https:ro
+  datadog-agent:
+    build: 
+      context: ./
+      dockerfile: ./DataDogLoggingDemo/DatadogAgent/Dockerfile
+    environment:
+      DD_APM_ENABLED: "true"
+      DD_APM_NON_LOCAL_TRAFFIC: "true"
+      DD_DOGSTATSD_NON_LOCAL_TRAFFIC: "true"
+      DD_API_KEY: "e82f312d67011a0212c996d3fc84af6c"
+      DD_SITE: "datadoghq.eu"
+      DD_LOGS_ENABLED: true
+      DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL: true
+      # this will automatically look in /var/lib/docker/containers, which is the mount to where docker stores its sys:out logs. 
+      # If set to true, a volume must be mounted
+      DD_LOGS_CONFIG_DOCKER_CONTAINER_USE_FILE: true
+      DD_CONTAINER_EXCLUDE: "name:datadogloggingdemo_datadog-agent"
+    volumes:
+      # In order for the Container Agent to collect logs from Docker containers, it needs to have access to the Docker socket
+      - //var/run/docker.sock://var/run/docker.sock
+      # Thie enables the agent to see the docker logs from other containers in the docker system for DD_LOGS_CONFIG_DOCKER_CONTAINER_USE_FILE to work
+      # For WSL1
+      - //var/lib/docker/containers://var/lib/docker/containers:ro
+      # For WSL2
+      - //mnt/wsl/docker-desktop-data/data/docker/containers://mnt/wsl/docker-desktop-data/data/docker/containers:ro
