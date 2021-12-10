@@ -36,7 +36,7 @@ For testing this option, you can use the default Dockerfile directly, as there i
 
 ### For automatic collection of logs by the Datadog agent
 
-1. Perform the above 5 steps (removing the WriteTo.DatadogLogs option)
+1. Perform the above steps for writing direct to the datadog server (removing the WriteTo.DatadogLogs option)
 2. Ensure the Datadog agent docker is configured with the correct environment variables and volumes - see *docker-compose.yaml*
 
 For testing this option, use the docker-compose file to create 2 related docker instances; Dockerfile and DatadogAgent/Dockerfile - one for the API and one for the Datadog agent.
