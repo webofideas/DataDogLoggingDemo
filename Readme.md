@@ -43,5 +43,5 @@ For testing this option, use the docker-compose file to create 2 related docker 
 
 ## Structured logging example
 
-In WeatherForecastController.Get there are some example log statements that use structured logging - i.e. logging actual objects tather than strings.
+In WeatherForecastController.Get there are some example log statements that use structured logging - i.e. logging actual objects rather than strings.
 When viewed in Datadog, they can be viewed as data objects and search conditions can be set on specific values.
