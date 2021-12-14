@@ -1,9 +1,9 @@
-version: "3.9"
+version: "3"
 services:
   datadogloggingdemo:
     build: 
       context: ./
-      dockerfile: ./DataDogLoggingDemo/Dockerfile
+      dockerfile: ./Dockerfile
     ports:
       - 8000:80
       - 8443:443
@@ -24,7 +24,7 @@ services:
       ASPNETCORE_Kestrel__Certificates__Default__Password: SECRETPASSWORD
       ASPNETCORE_Kestrel__Certificates__Default__Path: /https/aspnetapp.pfx
     volumes:
-      - ~/.aspnet/https:/https:ro
+      - ./.aspnet/https:/https:ro
   datadog-agent:
     build: 
       context: ./
@@ -33,13 +33,13 @@ services:
       DD_APM_ENABLED: "true"
       DD_APM_NON_LOCAL_TRAFFIC: "true"
       DD_DOGSTATSD_NON_LOCAL_TRAFFIC: "true"
-      DD_API_KEY: "e82f312d67011a0212c996d3fc84af6c"
+      DD_API_KEY: "insert key here"
       DD_SITE: "datadoghq.eu"
-      DD_LOGS_ENABLED: true
-      DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL: true
+      DD_LOGS_ENABLED: "true"
+      DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL: "true"
       # this will automatically look in /var/lib/docker/containers, which is the mount to where docker stores its sys:out logs. 
       # If set to true, a volume must be mounted
-      DD_LOGS_CONFIG_DOCKER_CONTAINER_USE_FILE: true
+      DD_LOGS_CONFIG_DOCKER_CONTAINER_USE_FILE: "true"
       DD_CONTAINER_EXCLUDE: "name:datadogloggingdemo_datadog-agent"
     volumes:
       # In order for the Container Agent to collect logs from Docker containers, it needs to have access to the Docker socket
