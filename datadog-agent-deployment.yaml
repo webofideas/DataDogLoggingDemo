@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: C:\kubernetes\kompose.exe convert
+    kompose.version: 1.26.0 (40646f47)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: datadog-agent
+  name: datadog-agent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: datadog-agent
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: C:\kubernetes\kompose.exe convert
+        kompose.version: 1.26.0 (40646f47)
+      creationTimestamp: null
+      labels:
+        io.kompose.service: datadog-agent
+    spec:
+      containers:
+        - env:
+            - name: DD_API_KEY
+              value: e82f312d67011a0212c996d3fc84af6c
+            - name: DD_SITE
+              value: datadoghq.eu
+            - name: DD_APM_ENABLED
+              value: "true"
+            - name: DD_APM_NON_LOCAL_TRAFFIC
+              value: "true"
+            - name: DD_LOGS_ENABLED
+              value: "true"
+            - name: DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL
+              value: "true"
+            - name: DD_LOGS_CONFIG_DOCKER_CONTAINER_USE_FILE
+              value: "true"
+            - name: DD_CONTAINER_EXCLUDE
+              value: "name:datadog-agent"
+            - name: DD_CRI_SOCKET_PATH
+              value: "/host/var/run/docker.sock"
+            - name: DOCKER_HOST
+              value: "unix:///host/var/run/docker.sock"
+          image: gcr.io/datadoghq/agent:latest
+          name: datadog-agent
+          resources: {}
+          volumeMounts:
+            - mountPath: /opt/datadog-agent/run
+              name: pointdir
+            - mountPath: /var/log/pods
+              name: logpodpath
+            - mountPath: /var/lib/docker/containers
+              name: logcontainerpath
+            - mountPath: /host/var/run
+              name: dockersocketdir
+      restartPolicy: Always
+      volumes:
+        - name: pointdir
+          hostPath:
+            path: '/opt/datadog-agent/run' 
+        - name: logpodpath
+          hostPath:
+            path: '/var/log/pods' 
+        - name: logcontainerpath
+          hostPath:
+            path: '/var/lib/docker/containers' 
+        - name: dockersocketdir
+          hostPath:
+            path: '/var/run' 
+status: {}

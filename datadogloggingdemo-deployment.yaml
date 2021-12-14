@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: C:\kubernetes\kompose.exe convert
+    kompose.version: 1.26.0 (40646f47)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: datadogloggingdemo
+  name: datadogloggingdemo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: datadogloggingdemo
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: C:\kubernetes\kompose.exe convert
+        kompose.version: 1.26.0 (40646f47)
+      creationTimestamp: null
+      labels:
+        io.kompose.service: datadogloggingdemo
+    spec:
+      containers:
+        - env:
+            - name: ASPNETCORE_ENVIRONMENT
+              value: Development
+            - name: ASPNETCORE_Kestrel__Certificates__Default__Password
+              value: SECRETPASSWORD
+            - name: ASPNETCORE_Kestrel__Certificates__Default__Path
+              value: /https/aspnetapp.pfx
+            - name: ASPNETCORE_URLS
+              value: https://+:443;http://+:80
+            - name: DD_AGENT_HOST
+              value: datadog-agent
+            - name: DD_ENV
+              value: Development
+            - name: DD_RUNTIME_METRICS_ENABLED
+              value: "true"
+            - name: DD_SERVICE
+              value: datadogloggingdemo
+            - name: DD_TRACE_ROUTE_TEMPLATE_RESOURCE_NAMES_ENABLED
+              value: "true"
+            - name: DD_VERSION
+              value: 1.0.0.0
+          image: datadogloggingdemo
+          imagePullPolicy: Never
+          name: datadogloggingdemo
+          ports:
+            - containerPort: 80
+            - containerPort: 443
+          resources: {}
+          volumeMounts:
+            - mountPath: /https
+              name: httpspath
+      restartPolicy: Always
+      volumes:
+        - name: httpspath
+          hostPath:
+            path: '/https'
+status: {}
