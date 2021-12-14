@@ -27,7 +27,7 @@ spec:
       containers:
         - env:
             - name: DD_API_KEY
-              value: e82f312d67011a0212c996d3fc84af6c
+              value: "insert api key here"
             - name: DD_SITE
               value: datadoghq.eu
             - name: DD_APM_ENABLED
