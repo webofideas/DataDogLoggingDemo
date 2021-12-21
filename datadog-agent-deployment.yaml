@@ -1,75 +1,364 @@
-apiVersion: apps/v1
-kind: Deployment
+# Source: datadog/templates/install_info-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
 metadata:
-  annotations:
-    kompose.cmd: C:\kubernetes\kompose.exe convert
-    kompose.version: 1.26.0 (40646f47)
-  creationTimestamp: null
-  labels:
-    io.kompose.service: datadog-agent
+  name: datadog-agent-installinfo
+  namespace: default
+  labels: {}
+  annotations: {}
+data:
+  install_info: |
+    ---
+    install_method:
+      tool: kubernetes sample manifests
+      tool_version: kubernetes sample manifests
+      installer_version: kubernetes sample manifests
+---
+# Source: datadog/templates/daemonset.yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
   name: datadog-agent
+  namespace: default
+  labels: {}
 spec:
-  replicas: 1
   selector:
     matchLabels:
-      io.kompose.service: datadog-agent
-  strategy:
-    type: Recreate
+      app: datadog-agent
   template:
     metadata:
-      annotations:
-        kompose.cmd: C:\kubernetes\kompose.exe convert
-        kompose.version: 1.26.0 (40646f47)
-      creationTimestamp: null
       labels:
-        io.kompose.service: datadog-agent
+        app: datadog-agent
+      name: datadog-agent
+      annotations: {}
     spec:
       containers:
-        - env:
-            - name: DD_API_KEY
-              value: "insert api key here"
+        - name: agent
+          image: "gcr.io/datadoghq/agent:7.31.1"
+          imagePullPolicy: IfNotPresent
+          command: ["agent", "run"]
+          resources: {}
+          ports:
+            - containerPort: 8125
+              name: dogstatsdport
+              protocol: UDP
+          env:
+            # Needs to be removed when Agent N-2 is built with Golang 1.17
+            - name: GODEBUG
+              value: x509ignoreCN=0
             - name: DD_SITE
               value: datadoghq.eu
+            - name: DD_API_KEY
+              value: --
+            - name: DD_KUBERNETES_KUBELET_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: KUBERNETES
+              value: "yes"
+            - name: DD_AC_EXCLUDE
+              value: "name:datadog-agent"
+            - name: DD_LOG_LEVEL
+              value: "INFO"
+            - name: DD_DOGSTATSD_PORT
+              value: "8125"
+            - name: DD_DOGSTATSD_NON_LOCAL_TRAFFIC
+              value: "true"
+            - name: DD_LEADER_ELECTION
+              value: "true"
+            - name: DD_COLLECT_KUBERNETES_EVENTS
+              value: "true"
             - name: DD_APM_ENABLED
-              value: "true"
-            - name: DD_APM_NON_LOCAL_TRAFFIC
-              value: "true"
+              value: "false"
             - name: DD_LOGS_ENABLED
               value: "true"
             - name: DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL
               value: "true"
-            - name: DD_LOGS_CONFIG_DOCKER_CONTAINER_USE_FILE
+            - name: DD_LOGS_CONFIG_K8S_CONTAINER_USE_FILE
               value: "true"
-            - name: DD_CONTAINER_EXCLUDE
-              value: "name:datadog-agent"
-            - name: DD_CRI_SOCKET_PATH
-              value: "/host/var/run/docker.sock"
-            - name: DOCKER_HOST
-              value: "unix:///host/var/run/docker.sock"
-          image: gcr.io/datadoghq/agent:latest
-          name: datadog-agent
-          resources: {}
+            - name: DD_KUBELET_TLS_VERIFY
+              value: "false"
+            - name: DD_HEALTH_PORT
+              value: "5555"
+            - name: DD_DOGSTATSD_SOCKET
+              value: "/var/run/datadog/dsd.socket"
           volumeMounts:
-            - mountPath: /opt/datadog-agent/run
-              name: pointdir
-            - mountPath: /var/log/pods
-              name: logpodpath
-            - mountPath: /var/lib/docker/containers
-              name: logcontainerpath
-            - mountPath: /host/var/run
-              name: dockersocketdir
-      restartPolicy: Always
+            - name: installinfo
+              subPath: install_info
+              mountPath: /etc/datadog-agent/install_info
+              readOnly: true
+            - name: logdatadog
+              mountPath: /var/log/datadog
+            - name: tmpdir
+              mountPath: /tmp
+              readOnly: false
+            - name: config
+              mountPath: /etc/datadog-agent
+            - name: runtimesocketdir
+              mountPath: /host/var/run
+              mountPropagation: None
+              readOnly: true
+            - name: dsdsocket
+              mountPath: /var/run/datadog
+            - name: procdir
+              mountPath: /host/proc
+              mountPropagation: None
+              readOnly: true
+            - name: cgroups
+              mountPath: /host/sys/fs/cgroup
+              mountPropagation: None
+              readOnly: true
+            - name: pointerdir
+              mountPath: /opt/datadog-agent/run
+              mountPropagation: None
+            - name: logpodpath
+              mountPath: /var/log/pods
+              mountPropagation: None
+              readOnly: true
+            - name: logscontainerspath
+              mountPath: /var/log/containers
+              mountPropagation: None
+              readOnly: true
+            - name: logdockercontainerpath
+              mountPath: /var/lib/docker/containers
+              mountPropagation: None
+              readOnly: true
+          livenessProbe:
+            failureThreshold: 6
+            httpGet:
+              path: /live
+              port: 5555
+              scheme: HTTP
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            successThreshold: 1
+            timeoutSeconds: 5
+          readinessProbe:
+            failureThreshold: 6
+            httpGet:
+              path: /ready
+              port: 5555
+              scheme: HTTP
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            successThreshold: 1
+            timeoutSeconds: 5
+        - name: trace-agent
+          image: "gcr.io/datadoghq/agent:7.31.1"
+          imagePullPolicy: IfNotPresent
+          command: ["trace-agent", "-config=/etc/datadog-agent/datadog.yaml"]
+          resources: {}
+          ports:
+            - containerPort: 8126
+              hostPort: 8126
+              name: traceport
+              protocol: TCP
+          env:
+            # Needs to be removed when Agent N-2 is built with Golang 1.17
+            - name: GODEBUG
+              value: x509ignoreCN=0
+            - name: DD_SITE
+              value: datadoghq.eu
+            - name: DD_API_KEY
+              value: --
+            - name: DD_KUBERNETES_KUBELET_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: KUBERNETES
+              value: "yes"
+            - name: DD_AC_EXCLUDE
+              value: "name:datadog-agent"
+            - name: DD_CLUSTER_AGENT_ENABLED
+              value: "false"
+            - name: DD_LOG_LEVEL
+              value: "INFO"
+            - name: DD_APM_ENABLED
+              value: "true"
+            - name: DD_APM_NON_LOCAL_TRAFFIC
+              value: "true"
+            - name: DD_APM_RECEIVER_PORT
+              value: "8126"
+            - name: DD_APM_RECEIVER_SOCKET
+              value: "/var/run/datadog/apm.socket"
+            - name: DD_DOGSTATSD_SOCKET
+              value: "/var/run/datadog/dsd.socket"
+          volumeMounts:
+            - name: config
+              mountPath: /etc/datadog-agent
+            - name: logdatadog
+              mountPath: /var/log/datadog
+            - name: tmpdir
+              mountPath: /tmp
+              readOnly: false
+            - name: dsdsocket
+              mountPath: /var/run/datadog
+            - name: runtimesocketdir
+              mountPath: /host/var/run
+              mountPropagation: None
+              readOnly: true
+          livenessProbe:
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            tcpSocket:
+              port: 8126
+            timeoutSeconds: 5
+        - name: process-agent
+          image: "gcr.io/datadoghq/agent:7.31.1"
+          imagePullPolicy: IfNotPresent
+          command: ["process-agent", "-config=/etc/datadog-agent/datadog.yaml"]
+          resources: {}
+          env:
+            # Needs to be removed when Agent N-2 is built with Golang 1.17
+            - name: GODEBUG
+              value: x509ignoreCN=0
+            - name: DD_SITE
+              value: datadoghq.eu
+            - name: DD_API_KEY
+              value: --
+            - name: DD_KUBERNETES_KUBELET_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: KUBERNETES
+              value: "yes"
+            - name: DD_AC_EXCLUDE
+              value: "name:datadog-agent"
+            - name: DD_CLUSTER_AGENT_ENABLED
+              value: "false"
+            - name: DD_LOG_LEVEL
+              value: "INFO"
+            - name: DD_SYSTEM_PROBE_ENABLED
+              value: "false"
+            - name: DD_DOGSTATSD_SOCKET
+              value: "/var/run/datadog/dsd.socket"
+            - name: DD_ORCHESTRATOR_EXPLORER_ENABLED
+              value: "false"
+          volumeMounts:
+            - name: config
+              mountPath: /etc/datadog-agent
+            - name: runtimesocketdir
+              mountPath: /host/var/run
+              mountPropagation: None
+              readOnly: true
+            - name: logdatadog
+              mountPath: /var/log/datadog
+            - name: tmpdir
+              mountPath: /tmp
+              readOnly: false
+            - name: cgroups
+              mountPath: /host/sys/fs/cgroup
+              mountPropagation: None
+              readOnly: true
+            - name: passwd
+              mountPath: /etc/passwd
+              readOnly: true
+            - name: procdir
+              mountPath: /host/proc
+              mountPropagation: None
+              readOnly: true
+            - name: dsdsocket
+              mountPath: /var/run/datadog
+              readOnly: true
+      initContainers:
+        - name: init-volume
+          image: "gcr.io/datadoghq/agent:7.31.1"
+          imagePullPolicy: IfNotPresent
+          command: ["bash", "-c"]
+          args:
+            - cp -r /etc/datadog-agent /opt
+          volumeMounts:
+            - name: config
+              mountPath: /opt/datadog-agent
+          resources: {}
+        - name: init-config
+          image: "gcr.io/datadoghq/agent:7.31.1"
+          imagePullPolicy: IfNotPresent
+          command: ["bash", "-c"]
+          args:
+            - for script in $(find /etc/cont-init.d/ -type f -name '*.sh' | sort) ; do bash $script ; done
+          volumeMounts:
+            - name: logdatadog
+              mountPath: /var/log/datadog
+            - name: config
+              mountPath: /etc/datadog-agent
+            - name: procdir
+              mountPath: /host/proc
+              mountPropagation: None
+              readOnly: true
+            - name: runtimesocketdir
+              mountPath: /host/var/run
+              mountPropagation: None
+              readOnly: true
+          env:
+            # Needs to be removed when Agent N-2 is built with Golang 1.17
+            - name: GODEBUG
+              value: x509ignoreCN=0
+            - name: DD_SITE
+              value: datadoghq.eu
+            - name: DD_API_KEY
+              value: --
+            - name: DD_KUBERNETES_KUBELET_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: KUBERNETES
+              value: "yes"
+            - name: DD_AC_EXCLUDE
+              value: "name:datadog-agent"
+            - name: DD_LEADER_ELECTION
+              value: "true"
+          resources: {}
       volumes:
-        - name: pointdir
-          hostPath:
-            path: '/opt/datadog-agent/run' 
-        - name: logpodpath
-          hostPath:
-            path: '/var/log/pods' 
-        - name: logcontainerpath
-          hostPath:
-            path: '/var/lib/docker/containers' 
-        - name: dockersocketdir
-          hostPath:
-            path: '/var/run' 
-status: {}
+        - name: installinfo
+          configMap:
+            name: datadog-agent-installinfo
+        - name: config
+          emptyDir: {}
+        - hostPath:
+            path: /var/run
+          name: runtimesocketdir
+        - name: logdatadog
+          emptyDir: {}
+        - name: tmpdir
+          emptyDir: {}
+        - hostPath:
+            path: /proc
+          name: procdir
+        - hostPath:
+            path: /sys/fs/cgroup
+          name: cgroups
+        - hostPath:
+            path: /var/run/datadog/
+            type: DirectoryOrCreate
+          name: dsdsocket
+        - hostPath:
+            path: /var/run/datadog/
+            type: DirectoryOrCreate
+          name: apmsocket
+        - name: s6-run
+          emptyDir: {}
+        - hostPath:
+            path: /etc/passwd
+          name: passwd
+        - hostPath:
+            path: /var/lib/datadog-agent/logs
+          name: pointerdir
+        - hostPath:
+            path: /var/log/pods
+          name: logpodpath
+        - hostPath:
+            path: /var/log/containers
+          name: logscontainerspath
+        - hostPath:
+            path: /var/lib/docker/containers
+          name: logdockercontainerpath
+      tolerations:
+      affinity: {}
+      serviceAccountName: "datadog-agent"
+      nodeSelector:
+        kubernetes.io/os: linux
+  updateStrategy:
+    rollingUpdate:
+      maxUnavailable: 10%
+    type: RollingUpdate

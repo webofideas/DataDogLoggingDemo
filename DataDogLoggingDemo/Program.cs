@@ -20,14 +20,14 @@ namespace DataDogLoggingDemo
                 // Required for automatic collection of logs by the agent.
                 .WriteTo.Console(formatter: new JsonFormatter(renderMessage: true))
                 // Required for direct transmission of logs to Datadogs server.
-                .WriteTo.DatadogLogs(
-                    // Replace with relevant Datadog account API ID.
-                    // (if this is invalid, the application still works, but nothing gets sent to Datadog).
-                    "insert api key here",
-                    configuration: new DatadogConfiguration() { Url = "https://http-intake.logs.datadoghq.eu" },
-                    service: "datadogloggingdemo",
-                    host: Environment.MachineName,
-                    source: "datadogloggingdemo")
+                //.WriteTo.DatadogLogs(
+                //    // Replace with relevant Datadog account API ID.
+                //    // (if this is invalid, the application still works, but nothing gets sent to Datadog).
+                //    "insert api key here",
+                //    configuration: new DatadogConfiguration() { Url = "https://http-intake.logs.datadoghq.eu" },
+                //    service: "datadogloggingdemo",
+                //    host: Environment.MachineName,
+                //    source: "datadogloggingdemo")
                 // Not essential - useful for local debugging
                 .WriteTo.File(new JsonFormatter(renderMessage: true), "log.json")
                 .CreateLogger();
