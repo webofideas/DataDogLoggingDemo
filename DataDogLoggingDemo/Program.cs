@@ -23,8 +23,8 @@ namespace DataDogLoggingDemo
                 //.WriteTo.DatadogLogs(
                 //    // Replace with relevant Datadog account API ID.
                 //    // (if this is invalid, the application still works, but nothing gets sent to Datadog).
-                //    "insert api key here",
-                //    configuration: new DatadogConfiguration() { Url = "https://http-intake.logs.datadoghq.eu" },
+                //    "--",
+                //    configuration: new DatadogConfiguration() { Url = "https://http-intake.logs.datadoghq.com" },
                 //    service: "datadogloggingdemo",
                 //    host: Environment.MachineName,
                 //    source: "datadogloggingdemo")

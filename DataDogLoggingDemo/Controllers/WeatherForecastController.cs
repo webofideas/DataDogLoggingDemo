@@ -30,13 +30,13 @@ namespace DataDogLoggingDemo.Controllers
             var ret= Enumerable.Range(1, 5).Select(index => new WeatherForecast
             {
                 Date = DateTime.Now.AddDays(index),
-                TemperatureC = rng.Next(-20, 55),
+                TemperatureC = rng.Next(30, 55),
                 Summary = Summaries[rng.Next(Summaries.Length)]
             })
             .ToArray();
 
             _logger.LogInformation("Some weather data {@Ret}", ret);
-            var data = new StructuredObject();
+            var data = StructuredObject.GetRandom();
             _logger.LogInformation("Some heavily structured data {@Data}", data);
 
             return ret;
